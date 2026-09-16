@@ -1,17 +1,330 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN" "http://www.w3.org/Math/DTD/mathml2/xhtml-math11-f.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><!--This file was converted to xhtml by Apache OpenOffice - see https://xml.openoffice.org/odf2xhtml for more info.--><head profile="http://dublincore.org/documents/dcmi-terms/"><meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/><title xml:lang="en-US">- no title specified</title><meta name="DCTERMS.title" content="" xml:lang="en-US"/><meta name="DCTERMS.language" content="en-US" scheme="DCTERMS.RFC4646"/><meta name="DCTERMS.source" content="http://xml.openoffice.org/odf2xhtml"/><meta name="DCTERMS.issued" content="2026-09-16T12:59:11" scheme="DCTERMS.W3CDTF"/><meta name="DCTERMS.modified" content="2026-09-16T12:59:39" scheme="DCTERMS.W3CDTF"/><meta name="DCTERMS.provenance" content="" xml:lang="en-US"/><meta name="DCTERMS.subject" content="," xml:lang="en-US"/><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/" hreflang="en"/><link rel="schema.DCTERMS" href="http://purl.org/dc/terms/" hreflang="en"/><link rel="schema.DCTYPE" href="http://purl.org/dc/dcmitype/" hreflang="en"/><link rel="schema.DCAM" href="http://purl.org/dc/dcam/" hreflang="en"/><style type="text/css">
-	@page {  }
-	table { border-collapse:collapse; border-spacing:0; empty-cells:show }
-	td, th { vertical-align:top; font-size:12pt;}
-	h1, h2, h3, h4, h5, h6 { clear:both }
-	ol, ul { margin:0; padding:0;}
-	li { list-style: none; margin:0; padding:0;}
-	<!-- "li span.odfLiEnd" - IE 7 issue-->
-	li span. { clear: both; line-height:0; width:0; height:0; margin:0; padding:0; }
-	span.footnodeNumber { padding-right:1em; }
-	span.annotation_style_by_filter { font-size:95%; font-family:Arial; background-color:#fff000; margin:0; border:0; padding:0; }
-	* { margin:0;}
-	.Standard { font-size:12pt; font-family:Tinos; writing-mode:page; }
-	<!-- ODF styles with no properties representable as CSS -->
-	{ }
-	</style></head><body dir="ltr" style="max-width:21.001cm;margin-top:2cm; margin-bottom:2cm; margin-left:2cm; margin-right:2cm; "><p class="Standard">&lt;!DOCTYPE html&gt;</p><p class="Standard">&lt;html lang="nl"&gt;</p><p class="Standard">&lt;head&gt;</p><p class="Standard">  &lt;meta charset="UTF-8"&gt;</p><p class="Standard">  &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</p><p class="Standard">  &lt;title&gt;GRBL Contour Converter&lt;/title&gt;</p><p class="Standard">  &lt;style&gt;</p><p class="Standard">    body { font-family: sans-serif; padding: 15px; background: #f4f4f9; color: #333; }</p><p class="Standard">    .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }</p><p class="Standard">    label { font-weight: bold; display: block; margin-top: 10px; }</p><p class="Standard">    input { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }</p><p class="Standard">    button { background: #007bff; color: white; border: none; padding: 12px; border-radius: 5px; width: 100%; font-size: 16px; margin-top: 15px; }</p><p class="Standard">    canvas { max-width: 100%; border: 1px solid #ccc; margin-top: 10px; }</p><p class="Standard">  &lt;/style&gt;</p><p class="Standard">&lt;/head&gt;</p><p class="Standard">&lt;body&gt;</p><p class="Standard"> </p><p class="Standard">  &lt;h2&gt;🛠️ GRBL Contour Generator (Android)&lt;/h2&gt;</p><p class="Standard"> </p><p class="Standard">  &lt;div class="card"&gt;</p><p class="Standard">    &lt;label&gt;1. Kies Foto&lt;/label&gt;</p><p class="Standard">    &lt;input type="file" id="imageInput" accept="image/*"&gt;</p><p class="Standard">    &lt;canvas id="previewCanvas"&gt;&lt;/canvas&gt;</p><p class="Standard">  &lt;/div&gt;</p><p class="Standard"> </p><p class="Standard">  &lt;div class="card"&gt;</p><p class="Standard">    &lt;label&gt;2. Frees Parameters (mm)&lt;/label&gt;</p><p class="Standard">    &lt;label&gt;Veilige Z-hoogte (mm): &lt;input type="number" id="safeZ" value="5" step="0.5"&gt;&lt;/label&gt;</p><p class="Standard">    &lt;label&gt;Freesdiepte Z (mm): &lt;input type="number" id="cutZ" value="-1" step="0.1"&gt;&lt;/label&gt;</p><p class="Standard">    &lt;label&gt;Breedte Werkstuk (mm): &lt;input type="number" id="targetWidth" value="100"&gt;&lt;/label&gt;</p><p class="Standard">    &lt;label&gt;Freessnelheid F (mm/min): &lt;input type="number" id="feedRate" value="500"&gt;&lt;/label&gt;</p><p class="Standard">    &lt;label&gt;Drempelwaarde randen (Threshold): &lt;input type="range" id="threshold" min="1" max="255" value="128"&gt;&lt;/label&gt;</p><p class="Standard">  &lt;/div&gt;</p><p class="Standard"> </p><p class="Standard">  &lt;button onclick="generateGCode()"&gt;💾 Genereer &amp; Download G-Code&lt;/button&gt;</p><p class="Standard"> </p><p class="Standard">  &lt;script&gt;</p><p class="Standard">    const imageInput = document.getElementById('imageInput');</p><p class="Standard">    const canvas = document.getElementById('previewCanvas');</p><p class="Standard">    const ctx = canvas.getContext('2d');</p><p class="Standard">    let img = new Image();</p><p class="Standard"> </p><p class="Standard">    imageInput.addEventListener('change', (e) =&gt; {</p><p class="Standard">      const file = e.target.files[0];</p><p class="Standard">      if (!file) return;</p><p class="Standard">      const reader = new FileReader();</p><p class="Standard">      reader.onload = (event) =&gt; {</p><p class="Standard">        img.onload = () =&gt; {</p><p class="Standard">          canvas.width = img.width;</p><p class="Standard">          canvas.height = img.height;</p><p class="Standard">          ctx.drawImage(img, 0, 0);</p><p class="Standard">        };</p><p class="Standard">        img.src = event.target.result;</p><p class="Standard">      };</p><p class="Standard">      reader.readAsDataURL(file);</p><p class="Standard">    });</p><p class="Standard"> </p><p class="Standard">    function generateGCode() {</p><p class="Standard">      if (!img.src) { alert("Upload eerst een foto!"); return; }</p><p class="Standard"> </p><p class="Standard">      const safeZ = parseFloat(document.getElementById('safeZ').value);</p><p class="Standard">      const cutZ = parseFloat(document.getElementById('cutZ').value);</p><p class="Standard">      const targetWidth = parseFloat(document.getElementById('targetWidth').value);</p><p class="Standard">      const feedRate = parseFloat(document.getElementById('feedRate').value);</p><p class="Standard">      const thresh = parseInt(document.getElementById('threshold').value);</p><p class="Standard"> </p><p class="Standard">      const scale = targetWidth / canvas.width;</p><p class="Standard">      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);</p><p class="Standard">      const data = imgData.data;</p><p class="Standard"> </p><p class="Standard">      let gcode = [];</p><p class="Standard">      gcode.push("; GRBL Contour Output (Android)");</p><p class="Standard">      gcode.push("G21 ; mm");</p><p class="Standard">      gcode.push("G90 ; Absoluut");</p><p class="Standard">      gcode.push(`G0 Z${safeZ}`);</p><p class="Standard">      gcode.push("M3 S10000");</p><p class="Standard"> </p><p class="Standard">      for (let y = 0; y &lt; canvas.height; y += 2) {</p><p class="Standard">        let cutting = false;</p><p class="Standard">        for (let x = 0; x &lt; canvas.width; x++) {</p><p class="Standard">          const idx = (y * canvas.width + x) * 4;</p><p class="Standard">          const avg = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;</p><p class="Standard"> </p><p class="Standard">          if (avg &lt; thresh) {</p><p class="Standard">            const realX = (x * scale).toFixed(3);</p><p class="Standard">            const realY = ((canvas.height - y) * scale).toFixed(3);</p><p class="Standard"> </p><p class="Standard">            if (!cutting) {</p><p class="Standard">              gcode.push(`G0 X${realX} Y${realY}`);</p><p class="Standard">              gcode.push(`G1 Z${cutZ} F150`);</p><p class="Standard">              cutting = true;</p><p class="Standard">            } else {</p><p class="Standard">              gcode.push(`G1 X${realX} Y${realY} F${feedRate}`);</p><p class="Standard">            }</p><p class="Standard">          } else {</p><p class="Standard">            if (cutting) {</p><p class="Standard">              gcode.push(`G0 Z${safeZ}`);</p><p class="Standard">              cutting = false;</p><p class="Standard">            }</p><p class="Standard">          }</p><p class="Standard">        }</p><p class="Standard">        if (cutting) {</p><p class="Standard">          gcode.push(`G0 Z${safeZ}`);</p><p class="Standard">          cutting = false;</p><p class="Standard">        }</p><p class="Standard">      }</p><p class="Standard"> </p><p class="Standard">      gcode.push(`G0 Z${safeZ}`);</p><p class="Standard">      gcode.push("G0 X0 Y0");</p><p class="Standard">      gcode.push("M5");</p><p class="Standard">      gcode.push("M30");</p><p class="Standard"> </p><p class="Standard">      const blob = new Blob([gcode.join('\n')], { type: 'text/plain' });</p><p class="Standard">      const a = document.createElement('a');</p><p class="Standard">      a.href = URL.createObjectURL(blob);</p><p class="Standard">      a.download = 'android_cnc_output.gcode';</p><p class="Standard">      a.click();</p><p class="Standard">    }</p><p class="Standard">  &lt;/script&gt;</p><p class="Standard">&lt;/body&gt;</p><p class="Standard">&lt;/html&gt;</p></body></html>
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GRBL CAM - Dynamische Freesbibliotheek</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background: #eceff1; color: #263238; max-width: 650px; margin: 0 auto; }
+    h2 { text-align: center; color: #37474f; margin-bottom: 5px; }
+    .card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+    label { font-weight: bold; display: block; margin-top: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #455a64; }
+    input, select { width: 100%; padding: 10px; margin-top: 5px; box-sizing: border-box; border: 1px solid #cfd8dc; border-radius: 6px; font-size: 14px; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    button { background: #00897b; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-size: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+    button:hover { background: #00695c; }
+    button.btn-alt { background: #546e7a; }
+    button.btn-alt:hover { background: #37474f; }
+    canvas { max-width: 100%; border: 1px solid #b0bec5; border-radius: 6px; margin-top: 8px; background: #000; display: block; }
+    textarea { width: 100%; height: 90px; font-family: monospace; font-size: 11px; margin-top: 10px; box-sizing: border-box; }
+    .canvas-title { font-size: 12px; font-weight: bold; margin-top: 10px; color: #607d8b; }
+    .modal { display: none; background: #fff; border: 2px solid #00897b; padding: 15px; border-radius: 10px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>⚙️ GRBL CAM Pro + Frees-Bib</h2>
+
+  <div class="card">
+    <label>1. Afbeelding & Previews</label>
+    <input type="file" id="imageInput" accept="image/*">
+    <div class="canvas-title">Origineel + Overlay</div>
+    <canvas id="previewCanvas"></canvas>
+    <div class="canvas-title">Heightmap / Diepte Preview</div>
+    <canvas id="heightmapCanvas"></canvas>
+  </div>
+
+  <div class="card">
+    <label>2. Dynamic Freesbibliotheek</label>
+    <label>Selecteer Frees:</label>
+    <select id="bitSelect" onchange="loadSelectedBit()"></select>
+    
+    <button type="button" class="btn-alt" onclick="toggleAddBitModal()">➕ Nieuwe Frees Toevoegen</button>
+
+    <!-- Modal / Formulier voor nieuwe frees -->
+    <div id="addBitModal" class="modal">
+      <h3 style="margin-top:0;">Nieuwe Frees Aanmaken</h3>
+      <label>Categorie:</label>
+      <select id="newCategory">
+        <option value="vlak">Vlakfrees (Flat Endmill)</option>
+        <option value="bol">Bolfrees (Ballnose)</option>
+        <option value="punt">Puntfrees / V-Bit</option>
+      </select>
+      <label>Naam / Omschrijving:</label>
+      <input type="text" id="newName" placeholder="bijv. V-Bit 60 graden 6mm">
+      <div class="row">
+        <div>
+          <label>Dia (mm):</label>
+          <input type="number" id="newDia" value="3.175" step="0.1">
+        </div>
+        <div>
+          <label>V-Hoek (°):</label>
+          <input type="number" id="newAngle" value="60" placeholder="Alleen bij Punt">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Feed (mm/min):</label>
+          <input type="number" id="newFeed" value="600">
+        </div>
+        <div>
+          <label>Spindel (RPM):</label>
+          <input type="number" id="newSpindle" value="12000">
+        </div>
+      </div>
+      <label>Overlap (%):</label>
+      <input type="number" id="newStepover" value="40">
+      <button type="button" onclick="saveNewBit()">💾 Opslaan in Bibliotheek</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <div>
+        <label>Aanvoersnelheid F (mm/min):</label>
+        <input type="number" id="feedRate" value="600">
+      </div>
+      <div>
+        <label>Spindel S (RPM):</label>
+        <input type="number" id="spindleSpeed" value="12000">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Overlap / Stepover (%):</label>
+        <input type="number" id="stepover" value="40">
+      </div>
+      <div>
+        <label>V-Bit Hoek (°):</label>
+        <input type="number" id="bitAngle" value="0" readonly style="background:#f0f0f0;">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>3. Afmetingen & Diepte</label>
+    <div class="row">
+      <div>
+        <label>Werkstuk Breedte (mm):</label>
+        <input type="number" id="targetWidth" value="100">
+      </div>
+      <div>
+        <label>Threshold:</label>
+        <input type="number" id="threshold" value="128">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Veilige Z (mm):</label>
+        <input type="number" id="safeZ" value="5" step="0.5">
+      </div>
+      <div>
+        <label>Freesdiepte Z (mm):</label>
+        <input type="number" id="cutZ" value="-1" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <button onclick="generateGCode()">💾 Genereer G-Code & Download</button>
+
+  <div class="card">
+    <label>G-Code Output:</label>
+    <textarea id="gcodePreview" readonly></textarea>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+    const hmCanvas = document.getElementById('heightmapCanvas');
+    const hmCtx = hmCanvas.getContext('2d');
+    let img = new Image();
+
+    // Standaard bibliotheek per categorie
+    const defaultLibrary = [
+      { id: '1', cat: 'vlak', name: 'Vlakfrees 3.175mm (1/8")', dia: 3.175, angle: 0, feed: 600, spindle: 12000, stepover: 40 },
+      { id: '2', cat: 'vlak', name: 'Vlakfrees 6.0mm', dia: 6.0, angle: 0, feed: 1000, spindle: 10000, stepover: 50 },
+      { id: '3', cat: 'bol',  name: 'Ballnose Bolfrees 2.0mm', dia: 2.0, angle: 0, feed: 400, spindle: 14000, stepover: 15 },
+      { id: '4', cat: 'punt', name: 'V-Bit Puntfrees 60° (6mm)', dia: 6.0, angle: 60, feed: 500, spindle: 12000, stepover: 25 },
+      { id: '5', cat: 'punt', name: 'V-Bit Puntfrees 90° (6mm)', dia: 6.0, angle: 90, feed: 500, spindle: 12000, stepover: 30 }
+    ];
+
+    let bitLibrary = JSON.parse(localStorage.getItem('cnc_bit_library')) || defaultLibrary;
+
+    function renderBitSelect() {
+      const select = document.getElementById('bitSelect');
+      select.innerHTML = '';
+      
+      const categories = { vlak: '--- VLAKFREEZEN ---', bol: '--- BOLFREEZEN (BALLNOSE) ---', punt: '--- PUNTFREEZEN (V-BIT) ---' };
+
+      for (let cat in categories) {
+        let group = document.createElement('optgroup');
+        group.label = categories[cat];
+        bitLibrary.filter(b => b.cat === cat).forEach(bit => {
+          let opt = document.createElement('option');
+          opt.value = bit.id;
+          opt.textContent = bit.name;
+          group.appendChild(opt);
+        });
+        select.appendChild(group);
+      }
+      loadSelectedBit();
+    }
+
+    function loadSelectedBit() {
+      const id = document.getElementById('bitSelect').value;
+      const bit = bitLibrary.find(b => b.id === id);
+      if (bit) {
+        document.getElementById('feedRate').value = bit.feed;
+        document.getElementById('spindleSpeed').value = bit.spindle;
+        document.getElementById('stepover').value = bit.stepover;
+        document.getElementById('bitAngle').value = bit.angle || 0;
+      }
+    }
+
+    function toggleAddBitModal() {
+      const modal = document.getElementById('addBitModal');
+      modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function saveNewBit() {
+      const cat = document.getElementById('newCategory').value;
+      const name = document.getElementById('newName').value || 'Custom Frees';
+      const dia = parseFloat(document.getElementById('newDia').value);
+      const angle = parseFloat(document.getElementById('newAngle').value) || 0;
+      const feed = parseInt(document.getElementById('newFeed').value);
+      const spindle = parseInt(document.getElementById('newSpindle').value);
+      const stepover = parseInt(document.getElementById('newStepover').value);
+
+      const newBit = { id: Date.now().toString(), cat, name, dia, angle, feed, spindle, stepover };
+      bitLibrary.push(newBit);
+      localStorage.setItem('cnc_bit_library', JSON.stringify(bitLibrary));
+      
+      renderBitSelect();
+      document.getElementById('bitSelect').value = newBit.id;
+      loadSelectedBit();
+      toggleAddBitModal();
+    }
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          hmCanvas.width = img.width;
+          hmCanvas.height = img.height;
+          updatePreviews();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('threshold').addEventListener('input', () => { if (img.src) updatePreviews(); });
+
+    function updatePreviews() {
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const thresh = parseInt(document.getElementById('threshold').value);
+
+      const hmData = hmCtx.createImageData(canvas.width, canvas.height);
+      const hmPixels = hmData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        if (avg < thresh) { data[i] = 255; data[i+1] = 0; data[i+2] = 0; }
+        hmPixels[i] = avg; hmPixels[i+1] = avg; hmPixels[i+2] = avg; hmPixels[i+3] = 255;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      hmCtx.putImageData(hmData, 0, 0);
+    }
+
+    function generateGCode() {
+      if (!img.src) { alert("Upload eerst een afbeelding!"); return; }
+
+      const bitId = document.getElementById('bitSelect').value;
+      const bit = bitLibrary.find(b => b.id === bitId);
+      const stepoverPct = parseFloat(document.getElementById('stepover').value);
+      const targetWidth = parseFloat(document.getElementById('targetWidth').value);
+      const safeZ = parseFloat(document.getElementById('safeZ').value);
+      const cutZ = parseFloat(document.getElementById('cutZ').value);
+      const feedRate = parseFloat(document.getElementById('feedRate').value);
+      const spindle = parseInt(document.getElementById('spindleSpeed').value);
+      const thresh = parseInt(document.getElementById('threshold').value);
+
+      // Bereken effectieve diameter gebaseerd op categorie
+      let effectiveDia = bit.dia;
+      if (bit.cat === 'punt' && bit.angle > 0) {
+        // V-Bit breedte op diepte Z: D_eff = 2 * |Z| * tan(hoek / 2)
+        const rad = (bit.angle / 2) * (Math.PI / 180);
+        effectiveDia = Math.min(bit.dia, 2 * Math.abs(cutZ) * Math.tan(rad));
+      }
+
+      const stepmm = Math.max(0.05, effectiveDia * (1 - (stepoverPct / 100)));
+      const scale = targetWidth / canvas.width;
+      const stepPx = Math.max(1, Math.round(stepmm / scale));
+
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      let gcode = [];
+      gcode.push(`; GRBL Output - ${bit.name} (${bit.cat.toUpperCase()})`);
+      gcode.push(`; Eff. Dia: ${effectiveDia.toFixed(3)}mm, Step: ${stepmm.toFixed(3)}mm (${stepPx}px)`);
+      gcode.push("G21 ; mm");
+      gcode.push("G90 ; Absoluut");
+      gcode.push(`G0 Z${safeZ}`);
+      gcode.push(`M3 S${spindle}`);
+
+      for (let y = 0; y < canvas.height; y += stepPx) {
+        let cutting = false;
+        for (let x = 0; x < canvas.width; x += stepPx) {
+          const idx = (y * canvas.width + x) * 4;
+          const avg = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+
+          if (avg < thresh) {
+            const realX = (x * scale).toFixed(3);
+            const realY = ((canvas.height - y) * scale).toFixed(3);
+
+            if (!cutting) {
+              gcode.push(`G0 X${realX} Y${realY}`);
+              gcode.push(`G1 Z${cutZ} F150`);
+              cutting = true;
+            } else {
+              gcode.push(`G1 X${realX} Y${realY} F${feedRate}`);
+            }
+          } else {
+            if (cutting) {
+              gcode.push(`G0 Z${safeZ}`);
+              cutting = false;
+            }
+          }
+        }
+        if (cutting) {
+          gcode.push(`G0 Z${safeZ}`);
+          cutting = false;
+        }
+      }
+
+      gcode.push(`G0 Z${safeZ}`);
+      gcode.push("G0 X0 Y0\nM5\nM30");
+
+      const resultText = gcode.join('\n');
+      document.getElementById('gcodePreview').value = resultText;
+      updatePreviews();
+
+      const blob = new Blob([resultText], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `cnc_${bit.cat}_${effectiveDia.toFixed(1)}mm.gcode`;
+      a.click();
+    }
+
+    // Initialiseer bij laden
+    renderBitSelect();
+  </script>
+</body>
+</html>
