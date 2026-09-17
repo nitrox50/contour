@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GRBL CAM Pro Visualizer v1.9.3 - Final Fixed Y Orientation</title>
+
+  <!-- Three.js & OrbitControls via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background: #eceff1; color: #263238; max-width: 700px; margin: 0 auto; }
+    .header-container { text-align: center; margin-bottom: 15px; }
+    h1 { margin: 0 0 5px 0; color: #37474f; font-size: 24px; }
+    .version-badge { display: inline-block; background: #00897b; color: white; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+    .card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+    label { font-weight: bold; display: block; margin-top: 10px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #455a64; }
+    input, select { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; border: 1px solid #cfd8dc; border-radius: 6px; font-size: 13px; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    button { background: #00897b; color: white; border: none; padding: 12px; border-radius: 6px; width: 100%; font-size: 15px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+    button:hover { background: #00695c; }
+    button.btn-alt { background: #546e7a; }
+    button.btn-alt:hover { background: #37474f; }
+    button.btn-danger { background: #e53935; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; width: auto; margin-top: 0; cursor: pointer; }
+    canvas { max-width: 100%; border: 1px solid #b0bec5; border-radius: 6px; background: #000; display: block; }
+    textarea { width: 100%; height: 80px; font-family: monospace; font-size: 11px; margin-top: 10px; box-sizing: border-box; }
+    .canvas-title { font-size: 12px; font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: #607d8b; }
+    
+    .queue-list { list-style: none; padding: 0; margin: 10px 0 0 0; }
+    .queue-item { display: flex; justify-content: space-between; align-items: center; background: #f1f8e9; border: 1px solid #c5e1a5; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; font-size: 13px; }
+
+    .modal { display: none; background: #fff; border: 2px solid #00897b; padding: 15px; border-radius: 10px; margin-top: 10px; }
+
+    #threeContainer {
+      width: 100%;
+      height: 360px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #b0bec5;
+      background: #181818;
+      margin-top: 10px;
+    }
+    .filter-panel {
+      background: #f1f3f4;
+      border: 1px solid #dcdfe1;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #455a64;
+      margin-top: 5px;
+    }
+    .range-row input[type="range"] { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <div class="header-container">
+    <h1>⚙️ GRBL CAM Pro Visualizer</h1>
+    <span class="version-badge" id="appVersion">v1.9.3 Synchronized Y-Orientation</span>
+  </div>
+
+  <div class="card">
+    <label>1. Afbeelding & Hybride Heightmap Generator</label>
+    <input type="file" id="imageInput" accept="image/*">
+
+    <div class="canvas-title">Afbeelding 1: Origineel Bronbestand</div>
+    <canvas id="previewCanvas"></canvas>
+
+    <!-- Hybrid Processing Controls -->
+    <div class="filter-panel">
+      <div style="font-weight:bold; font-size:12px; color:#00897b; margin-bottom:5px;">🎛️ Hybride Reliëf & Detail Projectie</div>
+      
+      <div class="range-row">
+        <span>3D Basis-Egalisatie (Blur):</span>
+        <input type="range" id="blurRadius" min="0" max="15" value="3" oninput="updatePreviews()">
+        <span id="blurVal">3px</span>
+      </div>
+
+      <div class="range-row">
+        <span>Detail Accentueren (Sobel Edge Boost):</span>
+        <input type="range" id="edgeBoost" min="0" max="100" value="40" oninput="updatePreviews()">
+        <span id="edgeVal">40%</span>
+      </div>
+
+      <div class="range-row">
+        <span>Reliëf Hoogte-contrast:</span>
+        <input type="range" id="contrastVal" min="-50" max="50" value="15" oninput="updatePreviews()">
+        <span id="contrastDisp">+15</span>
+      </div>
+
+      <div class="range-row">
+        <span>Middentonen / Diepte-curve (Gamma):</span>
+        <input type="range" id="gammaVal" min="0.5" max="2.0" step="0.1" value="1.1" oninput="updatePreviews()">
+        <span id="gammaDisp">1.1</span>
+      </div>
+
+      <div class="range-row">
+        <input type="checkbox" id="invertDepth" onchange="updatePreviews()" style="width:auto;">
+        <span>Omkeren (Donker = Diep, Licht = Ondiep)</span>
+      </div>
+    </div>
+
+    <div class="canvas-title">Afbeelding 1.5: Gecombineerde Hybride Heightmap</div>
+    <canvas id="heightmapCanvas"></canvas>
+
+    <div class="canvas-title">Afbeelding 2: 3D Simulatie (Correct Georiënteerd)</div>
+    <div id="threeContainer"></div>
+  </div>
+
+  <div class="card">
+    <label>2. Frees Selectie & Bibliotheek</label>
+    <select id="bitSelect" onchange="loadSelectedBit()"></select>
+
+    <button type="button" class="btn-alt" onclick="toggleAddBitModal()" style="margin-top:8px;">➕ Nieuwe Frees Aanmaken & Opslaan</button>
+
+    <div id="addBitModal" class="modal">
+      <h3 style="margin-top:0; color:#37474f; font-size:16px;">Nieuwe Frees Aanmaken</h3>
+      <label>Categorie:</label>
+      <select id="newCategory">
+        <option value="vlak">Vlakfrees (Flat Endmill)</option>
+        <option value="bol">Bolfrees (Ballnose)</option>
+        <option value="punt">Puntfrees / V-Bit</option>
+      </select>
+      <label>Naam:</label>
+      <input type="text" id="newName" placeholder="bijv. V-Bit 60 graden 6mm">
+      <div class="row">
+        <div>
+          <label>Dia (mm):</label>
+          <input type="number" id="newDia" value="3.175" step="0.1">
+        </div>
+        <div>
+          <label>V-Hoek (°):</label>
+          <input type="number" id="newAngle" value="60">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Feed (mm/min):</label>
+          <input type="number" id="newFeed" value="600">
+        </div>
+        <div>
+          <label>Spindel (RPM):</label>
+          <input type="number" id="newSpindle" value="12000">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Overlap / Stepover (%):</label>
+          <input type="number" id="newStepover" value="20">
+        </div>
+        <div>
+          <label>Standaard Marge (mm):</label>
+          <input type="number" id="newMargin" value="0.0" step="0.1">
+        </div>
+      </div>
+      <button type="button" onclick="saveNewBit()">💾 Opslaan in Bibliotheek</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <div>
+        <label>Aanvoer F (mm/min):</label>
+        <input type="number" id="feedRate" value="600">
+      </div>
+      <div>
+        <label>Spindel S (RPM):</label>
+        <input type="number" id="spindleSpeed" value="12000">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Overlap / Stepover (%):</label>
+        <input type="number" id="stepover" value="15">
+      </div>
+      <div>
+        <label>Ruwmarge / Stock Leave (mm):</label>
+        <input type="number" id="stockToLeave" value="0.5" step="0.1">
+      </div>
+    </div>
+
+    <button type="button" onclick="addToQueue()" style="background:#0288d1;">➕ Voeg toe aan Frees-wachtrij</button>
+  </div>
+
+  <div class="card">
+    <label>3. Actieve Frees-volgorde</label>
+    <ul id="queueList" class="queue-list"></ul>
+  </div>
+
+  <div class="card">
+    <label>4. Afmetingen & Diepte</label>
+    <div class="row">
+      <div>
+        <label>Werkstuk Breedte (mm):</label>
+        <input type="number" id="targetWidth" value="100" onchange="updatePreviews()">
+      </div>
+      <div>
+        <label>Veilige Z (mm):</label>
+        <input type="number" id="safeZ" value="5" step="0.5">
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px;">
+      <div>
+        <label>Maximale Diepte Z (mm):</label>
+        <input type="number" id="cutZ" value="-4.0" step="0.5" onchange="updatePreviews()">
+      </div>
+    </div>
+  </div>
+
+  <button onclick="generateAllGCode()">💾 Genereer G-Code Voor Wachtrij</button>
+
+  <div class="card">
+    <label>G-Code Preview:</label>
+    <textarea id="gcodePreview" readonly></textarea>
+  </div>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const canvas = document.getElementById('previewCanvas');
+    const ctx = canvas.getContext('2d');
+    const hmCanvas = document.getElementById('heightmapCanvas');
+    const hmCtx = hmCanvas.getContext('2d');
+
+    let img = new Image();
+    let isImageLoaded = false;
+
+    let scene, camera, renderer, controls, mesh;
+    const container = document.getElementById('threeContainer');
+
+    function init3D() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x181818);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.set(0, -90, 90);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight1.position.set(50, 50, 100);
+      scene.add(dirLight1);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+    init3D();
+
+    const defaultLibrary = [
+      { id: '1', cat: 'vlak', name: 'Vlakfrees 6.0mm (Grote Ruwfrees)', dia: 6.0, angle: 0, feed: 1000, spindle: 10000, stepover: 40, margin: 0.8 },
+      { id: '2', cat: 'bol', name: 'Bolfrees 3.175mm (Pocket & Detail)', dia: 3.175, angle: 0, feed: 800, spindle: 12000, stepover: 15, margin: 0.0 },
+      { id: '3', cat: 'punt', name: 'V-Bit 60° (Graveren)', dia: 6.0, angle: 60, feed: 500, spindle: 12000, stepover: 20, margin: 0.0 }
+    ];
+
+    let bitLibrary = JSON.parse(localStorage.getItem('cnc_bit_library')) || defaultLibrary;
+    let processQueue = [];
+
+    function renderBitSelect() {
+      const select = document.getElementById('bitSelect');
+      select.innerHTML = '';
+      const categories = { vlak: '--- VLAKFREEZEN ---', bol: '--- BOLFREEZEN ---', punt: '--- PUNTFREEZEN / V-BITS ---' };
+
+      for (let cat in categories) {
+        let group = document.createElement('optgroup');
+        group.label = categories[cat];
+        const bits = bitLibrary.filter(b => b.cat === cat);
+        bits.forEach(bit => {
+          let opt = document.createElement('option');
+          opt.value = bit.id;
+          opt.textContent = bit.name;
+          group.appendChild(opt);
+        });
+        if (bits.length > 0) select.appendChild(group);
+      }
+      loadSelectedBit();
+    }
+
+    function loadSelectedBit() {
+      const id = document.getElementById('bitSelect').value;
+      const bit = bitLibrary.find(b => b.id === id);
+      if (bit) {
+        document.getElementById('feedRate').value = bit.feed;
+        document.getElementById('spindleSpeed').value = bit.spindle;
+        document.getElementById('stepover').value = bit.stepover;
+        document.getElementById('stockToLeave').value = bit.margin !== undefined ? bit.margin : 0.0;
+      }
+    }
+
+    function toggleAddBitModal() {
+      const modal = document.getElementById('addBitModal');
+      modal.style.display = modal.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function saveNewBit() {
+      const cat = document.getElementById('newCategory').value;
+      const name = document.getElementById('newName').value || 'Custom Frees';
+      const dia = parseFloat(document.getElementById('newDia').value) || 3.175;
+      const angle = parseFloat(document.getElementById('newAngle').value) || 0;
+      const feed = parseInt(document.getElementById('newFeed').value) || 600;
+      const spindle = parseInt(document.getElementById('newSpindle').value) || 12000;
+      const stepover = parseInt(document.getElementById('newStepover').value) || 20;
+      const margin = parseFloat(document.getElementById('newMargin').value) || 0.0;
+
+      const newBit = { id: Date.now().toString(), cat, name, dia, angle, feed, spindle, stepover, margin };
+      bitLibrary.push(newBit);
+      localStorage.setItem('cnc_bit_library', JSON.stringify(bitLibrary));
+
+      renderBitSelect();
+      document.getElementById('bitSelect').value = newBit.id;
+      loadSelectedBit();
+      toggleAddBitModal();
+    }
+
+    function addToQueue() {
+      const id = document.getElementById('bitSelect').value;
+      const bit = bitLibrary.find(b => b.id === id);
+      if (!bit) return;
+
+      processQueue.push({
+        bit: { ...bit },
+        feed: parseFloat(document.getElementById('feedRate').value),
+        spindle: parseInt(document.getElementById('spindleSpeed').value),
+        stepover: parseFloat(document.getElementById('stepover').value),
+        stockToLeave: parseFloat(document.getElementById('stockToLeave').value) || 0.0
+      });
+      renderQueue();
+      if (isImageLoaded) updatePreviews();
+    }
+
+    function removeFromQueue(index) {
+      processQueue.splice(index, 1);
+      renderQueue();
+      if (isImageLoaded) updatePreviews();
+    }
+
+    function renderQueue() {
+      const list = document.getElementById('queueList');
+      list.innerHTML = '';
+      if (processQueue.length === 0) {
+        list.innerHTML = '<li style="font-size:12px; color:#78909c;">Geen frezen in wachtrij. Voeg een frees toe!</li>';
+        return;
+      }
+      processQueue.forEach((q, idx) => {
+        const li = document.createElement('li');
+        li.className = 'queue-item';
+        li.innerHTML = `
+          <div>
+            <strong>Stap ${idx + 1}: ${q.bit.name}</strong><br>
+            <small>Stepover: ${q.stepover}% | Stock Leave: ${q.stockToLeave}mm</small>
+          </div>
+          <button class="btn-danger" onclick="removeFromQueue(${idx})">❌</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    imageInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        img = new Image();
+        img.onload = () => {
+          isImageLoaded = true;
+          canvas.width = img.width;
+          canvas.height = img.height;
+          hmCanvas.width = img.width;
+          hmCanvas.height = img.height;
+
+          if (processQueue.length === 0) {
+            processQueue.push({ bit: bitLibrary[0], feed: 1000, spindle: 10000, stepover: 40, stockToLeave: 0.8 });
+            if (bitLibrary.length > 1) {
+              processQueue.push({ bit: bitLibrary[1], feed: 800, spindle: 12000, stepover: 15, stockToLeave: 0.0 });
+            }
+            renderQueue();
+          }
+          updatePreviews();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function applySobelEdgeMap(srcData, width, height) {
+      const edges = new Float32Array(width * height);
+      
+      for (let y = 1; y < height - 1; y++) {
+        for (let x = 1; x < width - 1; x++) {
+          const p = (dx, dy) => {
+            const idx = ((y + dy) * width + (x + dx)) * 4;
+            return (srcData[idx] * 0.299 + srcData[idx + 1] * 0.587 + srcData[idx + 2] * 0.114);
+          };
+
+          const gx = (-1 * p(-1,-1)) + (1 * p(1,-1)) +
+                     (-2 * p(-1, 0)) + (2 * p(1, 0)) +
+                     (-1 * p(-1, 1)) + (1 * p(1, 1));
+
+          const gy = (-1 * p(-1,-1)) + (-2 * p(0,-1)) + (-1 * p(1,-1)) +
+                     ( 1 * p(-1, 1)) + ( 2 * p(0, 1)) + ( 1 * p(1, 1));
+
+          const mag = Math.sqrt(gx * gx + gy * gy);
+          edges[y * width + x] = Math.min(255, mag);
+        }
+      }
+      return edges;
+    }
+
+    function updatePreviews() {
+      if (!isImageLoaded) return;
+
+      const blurR = parseInt(document.getElementById('blurRadius').value);
+      const edgeBoostPct = parseInt(document.getElementById('edgeBoost').value) / 100.0;
+      const contrast = parseInt(document.getElementById('contrastVal').value);
+      const gamma = parseFloat(document.getElementById('gammaVal').value);
+
+      document.getElementById('blurVal').textContent = blurR + 'px';
+      document.getElementById('edgeVal').textContent = Math.round(edgeBoostPct * 100) + '%';
+      document.getElementById('contrastDisp').textContent = (contrast >= 0 ? '+' : '') + contrast;
+      document.getElementById('gammaDisp').textContent = gamma.toFixed(1);
+
+      ctx.drawImage(img, 0, 0);
+
+      const rawImgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const edgeMap = applySobelEdgeMap(rawImgData, canvas.width, canvas.height);
+
+      hmCtx.drawImage(img, 0, 0);
+      if (blurR > 0) {
+        hmCtx.filter = `blur(${blurR}px)`;
+        hmCtx.drawImage(hmCanvas, 0, 0);
+        hmCtx.filter = 'none';
+      }
+
+      const hmData = hmCtx.getImageData(0, 0, hmCanvas.width, hmCanvas.height);
+      const data = hmData.data;
+      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+      for (let y = 0; y < hmCanvas.height; y++) {
+        for (let x = 0; x < hmCanvas.width; x++) {
+          const i = (y * hmCanvas.width + x) * 4;
+          let gray = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+
+          gray = factor * (gray - 128) + 128;
+          gray = Math.max(0, Math.min(255, gray));
+
+          let norm = gray / 255.0;
+          norm = Math.pow(norm, 1.0 / gamma);
+          gray = norm * 255.0;
+
+          const edgeVal = edgeMap[y * hmCanvas.width + x];
+          gray = Math.min(255, gray + (edgeVal * edgeBoostPct));
+
+          data[i] = gray; 
+          data[i + 1] = gray; 
+          data[i + 2] = gray;
+        }
+      }
+      hmCtx.putImageData(hmData, 0, 0);
+
+      simulateToolpath3D();
+    }
+
+    function generateErodedDepthMap(width, height, rawDepths, bitRadiusPx) {
+      const eroded = new Float32Array(width * height);
+      const tempMap = new Float32Array(width * height);
+      const rPx = Math.ceil(bitRadiusPx);
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          let minVal = Infinity;
+          for (let dy = -rPx; dy <= rPx; dy++) {
+            for (let dx = -rPx; dx <= rPx; dx++) {
+              if (dx * dx + dy * dy <= rPx * rPx) {
+                const nx = Math.min(Math.max(x + dx, 0), width - 1);
+                const ny = Math.min(Math.max(y + dy, 0), height - 1);
+                const val = rawDepths[ny * width + nx];
+                if (val < minVal) minVal = val;
+              }
+            }
+          }
+          tempMap[y * width + x] = minVal === Infinity ? 0 : minVal;
+        }
+      }
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          let maxVal = -Infinity;
+          for (let dy = -rPx; dy <= rPx; dy++) {
+            for (let dx = -rPx; dx <= rPx; dx++) {
+              if (dx * dx + dy * dy <= rPx * rPx) {
+                const nx = Math.min(Math.max(x + dx, 0), width - 1);
+                const ny = Math.min(Math.max(y + dy, 0), height - 1);
+                const val = tempMap[ny * width + nx];
+                if (val > maxVal) maxVal = val;
+              }
+            }
+          }
+          eroded[y * width + x] = maxVal < 0.05 ? 0 : Math.min(maxVal, rawDepths[y * width + x]);
+        }
+      }
+
+      return eroded;
+    }
+
+    function simulateToolpath3D() {
+      if (mesh) {
+        scene.remove(mesh);
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      }
+
+      const targetWidth = parseFloat(document.getElementById('targetWidth').value) || 100;
+      const maxCutZ = Math.abs(parseFloat(document.getElementById('cutZ').value)) || 4;
+      const invert = document.getElementById('invertDepth').checked;
+      const aspect = hmCanvas.height / hmCanvas.width;
+      const targetHeight = targetWidth * aspect;
+
+      const cols = 150;
+      const rows = Math.round(150 * aspect);
+
+      const rawDepths = new Float32Array(cols * rows);
+      const materialBuffer = new Float32Array(cols * rows);
+      materialBuffer.fill(0);
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = cols;
+      tempCanvas.height = rows;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(hmCanvas, 0, 0, cols, rows);
+      const pData = tempCtx.getImageData(0, 0, cols, rows).data;
+
+      const scaleX = targetWidth / cols;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const pIdx = (r * cols + c) * 4;
+          let intensity = pData[pIdx] / 255.0;
+          if (invert) intensity = 1.0 - intensity;
+          rawDepths[r * cols + c] = intensity * maxCutZ;
+        }
+      }
+
+      if (processQueue.length > 0) {
+        processQueue.forEach(task => {
+          const bit = task.bit;
+          const bitRadius = bit.dia / 2;
+          const bitRadiusPx = bitRadius / scaleX;
+          const radiusInGrid = Math.max(1, Math.round(bitRadiusPx));
+          const stockLeave = task.stockToLeave;
+
+          const toolAllowedDepths = generateErodedDepthMap(cols, rows, rawDepths, bitRadiusPx);
+
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const allowedTargetDepth = toolAllowedDepths[r * cols + c];
+              if (allowedTargetDepth <= 0.01) continue;
+
+              const constrainedDepth = Math.max(0, allowedTargetDepth - stockLeave);
+
+              for (let dr = -radiusInGrid; dr <= radiusInGrid; dr++) {
+                for (let dc = -radiusInGrid; dc <= radiusInGrid; dc++) {
+                  const nr = r + dr;
+                  const nc = c + dc;
+
+                  if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                    const dist = Math.sqrt(dr * dr + dc * dc) * scaleX;
+
+                    if (dist <= bitRadius) {
+                      let actualCutAtPoint = constrainedDepth;
+
+                      if (bit.cat === 'bol') {
+                        const sphereOffset = bitRadius - Math.sqrt(Math.max(0, bitRadius * bitRadius - dist * dist));
+                        actualCutAtPoint = Math.max(0, constrainedDepth - sphereOffset);
+                      } else if (bit.cat === 'punt' && bit.angle > 0) {
+                        const rad = (bit.angle / 2) * (Math.PI / 180);
+                        const vOffset = dist / Math.tan(rad);
+                        actualCutAtPoint = Math.max(0, constrainedDepth - vOffset);
+                      }
+
+                      const bufferIdx = nr * cols + nc;
+                      materialBuffer[bufferIdx] = Math.max(materialBuffer[bufferIdx], actualCutAtPoint);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      const geometry = new THREE.PlaneGeometry(targetWidth, targetHeight, cols - 1, rows - 1);
+      const posAttr = geometry.attributes.position;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const planeIndex = (rows - 1 - r) * cols + c; 
+          const depth = materialBuffer[r * cols + c];
+          posAttr.setZ(planeIndex, -depth);
+        }
+      }
+
+      geometry.computeVertexNormals();
+
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xd2b48c,
+        roughness: 0.4,
+        metalness: 0.1,
+        side: THREE.DoubleSide
+      });
+
+      mesh = new THREE.Mesh(geometry, material);
+      scene.add(mesh);
+
+      controls.target.set(0, 0, -maxCutZ / 2);
+      camera.position.set(0, -targetHeight * 1.2, targetWidth * 1.0);
+      controls.update();
+    }
+
+    function generateAllGCode() {
+      if (!isImageLoaded) { alert("Upload eerst een afbeelding!"); return; }
+      if (processQueue.length === 0) { alert("Voeg eerst een frees toe aan de wachtrij!"); return; }
+
+      const targetWidth = parseFloat(document.getElementById('targetWidth').value);
+      const safeZ = parseFloat(document.getElementById('safeZ').value);
+      const maxCutZ = Math.abs(parseFloat(document.getElementById('cutZ').value));
+      const invert = document.getElementById('invertDepth').checked;
+
+      const rawDepths = new Float32Array(hmCanvas.width * hmCanvas.height);
+      const imgData = hmCtx.getImageData(0, 0, hmCanvas.width, hmCanvas.height).data;
+
+      for (let y = 0; y < hmCanvas.height; y++) {
+        for (let x = 0; x < hmCanvas.width; x++) {
+          const idx = (y * hmCanvas.width + x) * 4;
+          let intensity = imgData[idx] / 255.0;
+          if (invert) intensity = 1.0 - intensity;
+          rawDepths[y * hmCanvas.width + x] = intensity * maxCutZ;
+        }
+      }
+
+      processQueue.forEach((task, index) => {
+        const bit = task.bit;
+        const feedRate = task.feed;
+        const spindle = task.spindle;
+        const stockLeave = task.stockToLeave;
+
+        const scale = targetWidth / hmCanvas.width;
+        const bitRadiusPx = (bit.dia / 2) / scale;
+        const stepYmm = Math.max(0.1, bit.dia * (1 - (task.stepover / 100)));
+        const stepYPx = Math.max(1, Math.round(stepYmm / scale));
+
+        const toolAllowedDepths = generateErodedDepthMap(hmCanvas.width, hmCanvas.height, rawDepths, bitRadiusPx);
+
+        let gcode = [];
+        gcode.push(`; --- FREES PASS ${index + 1}: ${bit.name} ---`);
+        gcode.push(`; Synchronized Y-Orientation Pipeline`);
+        gcode.push("G21\nG90");
+        gcode.push(`G0 Z${safeZ}\nM3 S${spindle}`);
+
+        for (let y = 0; y < hmCanvas.height; y += stepYPx) {
+          const realY = ((hmCanvas.height - y) * scale).toFixed(3);
+          const reverse = (Math.floor(y / stepYPx) % 2 === 1);
+          const startX = reverse ? hmCanvas.width - 1 : 0;
+          const endX = reverse ? -1 : hmCanvas.width;
+          const dir = reverse ? -1 : 1;
+
+          let isFirst = true;
+
+          for (let x = startX; reverse ? x > endX : x < endX; x += dir) {
+            const allowedZVal = toolAllowedDepths[y * hmCanvas.width + x];
+            
+            let constrainedZ = 0;
+            if (allowedZVal > 0.05) {
+              constrainedZ = Math.min(0, -(allowedZVal - stockLeave));
+            }
+
+            const targetZ = constrainedZ.toFixed(3);
+            const realX = (x * scale).toFixed(3);
+
+            if (isFirst) {
+              gcode.push(`G0 X${realX} Y${realY}`);
+              gcode.push(`G1 Z${targetZ} F150`);
+              isFirst = false;
+            } else {
+              gcode.push(`G1 X${realX} Y${realY} Z${targetZ} F${feedRate}`);
+            }
+          }
+        }
+
+        gcode.push(`G0 Z${safeZ}\nG0 X0 Y0\nM5\nM30`);
+        const resultText = gcode.join('\n');
+        document.getElementById('gcodePreview').value = resultText;
+
+        const blob = new Blob([resultText], { type: 'application/octet-stream' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Pass_${index + 1}_${bit.cat}_${bit.dia}mm.gcode`;
+        a.click();
+      });
+    }
+
+    renderBitSelect();
+    renderQueue();
+  </script>
+</body>
+</html>
